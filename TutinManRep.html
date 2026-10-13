@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Tutin Management Report App v3.0.9</title>
+<title>Tutin Management Report App v3.0.11</title>
 <link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -121,7 +121,7 @@ body.menu-collapsed nav{display:none}
 <header>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <button class="menu-toggle no-print" onclick="toggleMenu()" id="menuBtn">☰ Menu</button>
-    <h1 style="margin:0;font-size:18px">Tutin Management Report App <small>v3.0.9</small></h1>
+    <h1 style="margin:0;font-size:18px">Tutin Management Report App <small>v3.0.11</small></h1>
   </div>
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <div class="small" id="saveState" style="opacity:.85">No client loaded</div>
@@ -795,6 +795,7 @@ function renderMapping(){
     +'<div class="btns" style="margin-bottom:12px">'
     +'<button class="btn primary" onclick="addCOA();show(\'coa\')">+ Account</button>'
     +clearBtn
+    +'<input type="search" id="mapSearchBox" placeholder="Search accounts or mapping…" value="'+esc(window._mapSearch||'')+'" oninput="window._mapSearch=this.value;applyColFilters()" style="min-width:260px">'
     +'<span id="mappingFilterCount" class="muted small" style="white-space:nowrap"></span>'
     +'</div>'
     +table(heads,rows,'mappingTable')
@@ -904,9 +905,10 @@ function renderCOA(){ensureClientDefaults();let header=`<tr><th class="sticky-1"
       +_coaDups.map(n=>'<b>'+esc(n)+'</b>').join(', ')
       +'. Use the button below to remove them.</div>'
     :'';
-  document.getElementById('coa').innerHTML=`<div class="panel"><h2>Reporting COA</h2><p class="muted">Maintain the reporting account names and sections. Sub-accounts group under a parent and show as a sub-total block in reports.</p>${_dupBanner}<div class="btns"><button class="btn primary" onclick="addCOA()">+ Account</button><button class="btn" onclick="removeDuplicateCOA()">Remove Duplicates</button><button class="btn" onclick="resetCOA()">Reset to Tutin master COA</button></div><div class="coa-wrap"><table class="coa-table simple-coa"><thead>${header}</thead><tbody>${body}</tbody></table></div></div>`}
+  document.getElementById('coa').innerHTML=`<div class="panel"><h2>Reporting COA</h2><p class="muted">Maintain the reporting account names and sections. Sub-accounts group under a parent and show as a sub-total block in reports.</p>${_dupBanner}<div class="btns"><button class="btn primary" onclick="addCOA()">+ Account</button><button class="btn" onclick="removeDuplicateCOA()">Remove Duplicates</button><button class="btn" onclick="resetCOA()">Reset to Tutin master COA</button><input type="search" id="coaSearchBox" placeholder="Search reporting accounts…" value="${esc(window._coaSearch||'')}" oninput="window._coaSearch=this.value;applyCOASearch()" style="min-width:260px"></div><div class="coa-wrap"><table class="coa-table simple-coa"><thead>${header}</thead><tbody>${body}</tbody></table></div></div>`;applyCOASearch()}
+function applyCOASearch(){let q=(window._coaSearch||'').toLowerCase().trim();document.querySelectorAll('#coa .coa-table tbody tr').forEach(tr=>{let txt=[...tr.querySelectorAll('input.account-name')].map(i=>i.value).join(' ');tr.querySelectorAll('select').forEach(sl=>{if(sl.selectedOptions[0])txt+=' '+sl.selectedOptions[0].text});tr.style.display=(!q||txt.toLowerCase().includes(q))?'':'none';});}
 function budgetAmount(id,m){return num(client.budgets[id]?.[m])}
-function budgetSum(type,m){return reportingCOA().filter(c=>c.type===type).reduce((s,c)=>s+budgetAmount(c.id,m),0)}
+function budgetSum(type,m){return reportingCOA().filter(c=>c.type===type).reduce((s,c)=>s+budAmt(c,m),0)}
 function budgetTotalRow(label,months,fn,cls='',totalFn=null,rowKey=null){let total=totalFn?totalFn():months.reduce((s,m)=>s+fn(m),0);return `<tr class="subtotal ${cls||''}">${rowKey?`<td class="budget-account" data-row="${rowKey}">${esc(label)}</td>`:`<td class="budget-account">${esc(label)}</td>`}${months.map(m=>`<td class="right"${rowKey?` data-row="${rowKey}" data-month="${m}"`:''}>${money(fn(m))}</td>`).join('')}<td class="right budget-total-col"${rowKey?` data-row="${rowKey}" data-col="total"`:''}>${money(total)}</td></tr>`}
 function budgetPercentRow(label,months,fn,totalFn=null,rowKey=null){let total=totalFn?totalFn():0;return `<tr class="subtotal">${rowKey?`<td class="budget-account" data-row="${rowKey}">${esc(label)}</td>`:`<td class="budget-account">${esc(label)}</td>`}${months.map(m=>`<td class="right"${rowKey?` data-row="${rowKey}" data-month="${m}"`:''}>${pct(fn(m))}</td>`).join('')}<td class="right budget-total-col"${rowKey?` data-row="${rowKey}" data-col="total"`:''}>${pct(total)}</td></tr>`}
 function cssEsc(s){return (window.CSS&&CSS.escape)?CSS.escape(String(s)):String(s).replace(/([^a-zA-Z0-9_-])/g,'\\$1')}
@@ -1178,6 +1180,7 @@ function applyColFilters(){
   let f0=_colFilters.col0.toLowerCase().trim();
   let f1=_colFilters.col1.toLowerCase().trim();
   let f2=_colFilters.col2.toLowerCase().trim();
+  let q=(window._mapSearch||'').toLowerCase().trim();
   let vis=0,total=0;
   tbody.querySelectorAll('tr').forEach(tr=>{
     total++;
@@ -1186,6 +1189,7 @@ function applyColFilters(){
     let c1=cells[1]?cells[1].textContent.toLowerCase():'';
     let c2=cells[2]?cells[2].textContent.toLowerCase():'';
     let show=(!f0||c0.includes(f0))&&(!f1||c1.includes(f1))&&(!f2||c2.includes(f2));
+    if(show&&q){let sel=tr.querySelector('select');let selTxt=sel&&sel.selectedOptions[0]?sel.selectedOptions[0].text:'';show=(c0+' '+selTxt).toLowerCase().includes(q);}
     tr.style.display=show?'':'none';
     if(show)vis++;
   });
@@ -1196,7 +1200,7 @@ function applyColFilters(){
   });
   // Update count
   let lbl=document.getElementById('mappingFilterCount');
-  let anyActive=f0||f1||f2;
+  let anyActive=f0||f1||f2||q;
   if(lbl)lbl.textContent=anyActive?(vis+' of '+total+' accounts'):'';
 }
 
@@ -1416,8 +1420,65 @@ function buildStreamPL(streamId, c){
 
 function reportCalc(){let rm=client.settings.reportMonth;let months=fyMonths();let idx=months.indexOf(rm);// Cap: only use months up to and including rm (ignore any imported data beyond)
 let ytdMonths=months.slice(0,idx+1);let cm=mappedTotals('pl',rm);let pmKey=months[idx-1];let pm=pmKey?mappedTotals('pl',pmKey):{};let ytd={};reportingCOA().forEach(c=>ytd[c.id]=ytdMonths.reduce((s,m)=>s+mappedTotals('pl',m)[c.id],0));let bs=mappedTotals('bs');let rev=sumByType(ytd,'income'), cogs=sumByType(ytd,'cogs'), otherInc=sumByType(ytd,'other_income'), exp=sumByType(ytd,'expense'), otherExp=sumByType(ytd,'other_expense');let gp=rev-cogs,np=gp+otherInc-exp-otherExp;let ar=(client.raw.ar.rows||[]).reduce((s,r)=>s+r.total,0), ap=(client.raw.ap.rows||[]).reduce((s,r)=>s+r.total,0);let cash=bs['asset_current.bank']||0;let currentAssets=currentAssetAmount(bs);let currentLiab=currentLiabilityAmount(bs);let debtorDays=rev?ar/rev*(idx+1)*30:0, creditorDays=cogs?ap/cogs*(idx+1)*30:0;let invDays=0;// BS date warning — compare at month level only
-let bsAsOf=client.raw.bs.asOf||'';let bsDateMismatch=bsAsOf&&bsMonthKey(bsAsOf)!==rm;return{rm,months,idx,cm,pm,ytd,bs,rev,cogs,otherInc,exp,otherExp,gp,np,ar,ap,cash,currentAssets,currentLiab,currentRatio:currentLiab?currentAssets/currentLiab:0,quickRatio:currentLiab?(currentAssets-(bs['asset_current.inventory']||0))/currentLiab:0,debtorDays,creditorDays,workingCapital:currentAssets-currentLiab,cashConversionCycle:debtorDays+invDays-creditorDays,bsDateMismatch,bsAsOf}}
-function calcBudgetForTypes(types,months){let t=Array.isArray(types)?types:[types];let ms=Array.isArray(months)?months:[months];return reportingCOA().filter(c=>t.includes(c.type)).reduce((s,c)=>s+ms.reduce((ss,m)=>ss+num(client.budgets[c.id]?.[m]),0),0);}
+let bsAsOf=client.raw.bs.asOf||'';let bsDateMismatch=bsAsOf&&bsMonthKey(bsAsOf)!==rm;return{rm,months,idx,cm,pm,ytd,bs,rev,cogs,otherInc,exp,otherExp,gp,np,ar,ap,cash,currentAssets,currentLiab,currentRatio:currentLiab?currentAssets/currentLiab:0,quickRatio:currentLiab?(currentAssets-(bs['asset_current.inventory']||0))/currentLiab:0,debtorDays,creditorDays,workingCapital:currentAssets-currentLiab,cashConversionCycle:debtorDays+invDays-creditorDays,bsDateMismatch,bsAsOf,budCM:x=>budAmt(x,rm),budYTD:x=>ytdMonths.reduce((s,m)=>s+budAmt(x,m),0)}}
+function budAmt(co,m){
+  let own=num(client.budgets[co.id]?.[m]);
+  let kids=client.reportingCOA.filter(x=>!x.hidden&&x.parentId===co.id&&x.type===co.type);
+  if(!kids.length)return own;
+  let ks=kids.reduce((s,k)=>s+num(client.budgets[k.id]?.[m]),0);
+  return ks!==0?0:own;
+}
+function calcBudgetForTypes(types,months){let t=Array.isArray(types)?types:[types];let ms=Array.isArray(months)?months:[months];return reportingCOA().filter(c=>t.includes(c.type)).reduce((s,c)=>s+ms.reduce((ss,m)=>ss+budAmt(c,m),0),0);}
+function calcBudgetC(c,types,isYtd){let t=Array.isArray(types)?types:[types];return reportingCOA().filter(x=>t.includes(x.type)).reduce((s,x)=>s+(isYtd?c.budYTD(x):c.budCM(x)),0);}
+function streamBudgetFns(streamId,c){
+  let ytdMonths=c.months.slice(0,c.idx+1);
+  let sum=(x,months)=>months.reduce((s,m)=>s+budAmt(x,m),0);
+  let ratioFor=months=>{
+    let inc={},cg={};
+    reportingCOA().forEach(x=>{
+      if(!x.streamId)return;
+      if(x.type==='income')inc[x.streamId]=(inc[x.streamId]||0)+sum(x,months);
+      if(x.type==='cogs')cg[x.streamId]=(cg[x.streamId]||0)+sum(x,months);
+    });
+    let totGP=0,totInc=0;
+    getStreams().forEach(st=>{totGP+=(inc[st.id]||0)-(cg[st.id]||0);totInc+=(inc[st.id]||0);});
+    let myGP=(inc[streamId]||0)-(cg[streamId]||0),myInc=inc[streamId]||0;
+    return totGP>0?myGP/totGP:(totInc>0?myInc/totInc:0);
+  };
+  let rM=ratioFor([c.rm]),rY=ratioFor(ytdMonths);
+  let fn=(x,months,r)=>{
+    if(x.streamId&&x.streamId!==streamId)return 0;
+    if(x.streamId===streamId)return sum(x,months);
+    if(!x.streamId&&['expense','other_expense'].includes(x.type))return sum(x,months)*r;
+    return 0;
+  };
+  return {budCM:x=>fn(x,[c.rm],rM),budYTD:x=>fn(x,ytdMonths,rY),ratioM:rM,ratioY:rY};
+}
+function streamPLRows(streamId,c){
+  let sd=buildStreamPL(streamId,c);
+  let bf=streamBudgetFns(streamId,c);
+  let sC={...c,cm:sd.cm,ytd:sd.ytd,budCM:bf.budCM,budYTD:bf.budYTD};
+  let rows=[];
+  rows.push(...plSectionRows(sC,'income','Income'));
+  rows.push(...plSectionRows(sC,'cogs','Cost of Sales'));
+  let gpM=sumByType(sd.cm,'income')-sumByType(sd.cm,'cogs');
+  let gpY=sumByType(sd.ytd,'income')-sumByType(sd.ytd,'cogs');
+  let incM=sumByType(sd.cm,'income'),incY=sumByType(sd.ytd,'income');
+  let bIncM=calcBudgetC(sC,'income',false),bIncY=calcBudgetC(sC,'income',true);
+  let bGpM=bIncM-calcBudgetC(sC,'cogs',false),bGpY=bIncY-calcBudgetC(sC,'cogs',true);
+  rows.push(plCalcRow('Gross Profit',null,gpM,gpY,bGpM,bGpY));
+  rows.push(plPctRow('GP %',gpM,incM,bGpM,bIncM,gpY,incY,bGpY,bIncY));
+  rows.push(...plSectionRows(sC,'other_income','Other Income'));
+  rows.push(...plSectionRows(sC,'expense','Expenses'));
+  rows.push(...plSectionRows(sC,'other_expense','Other Expenses'));
+  let npM=gpM+sumByType(sd.cm,'other_income')-sumByType(sd.cm,'expense')-sumByType(sd.cm,'other_expense');
+  let npY=gpY+sumByType(sd.ytd,'other_income')-sumByType(sd.ytd,'expense')-sumByType(sd.ytd,'other_expense');
+  let bNpM=bGpM+calcBudgetC(sC,'other_income',false)-calcBudgetC(sC,'expense',false)-calcBudgetC(sC,'other_expense',false);
+  let bNpY=bGpY+calcBudgetC(sC,'other_income',true)-calcBudgetC(sC,'expense',true)-calcBudgetC(sC,'other_expense',true);
+  rows.push(plCalcRow('Net Profit',null,npM,npY,bNpM,bNpY));
+  rows.push(plPctRow('NP %',npM,incM,bNpM,bIncM,npY,incY,bNpY,bIncY));
+  return {rows,sd,bf};
+}
 function qcChecks(){
   ensureClientDefaults();
   let checks=[];
@@ -1476,7 +1537,7 @@ function qcChecks(){
       let v=num(bsTot[co.id]);
       return s+(co.autoFlip?Math.max(v,0):v);
     },0);
-    let bsAssetNoncurrent=reportingCOA().filter(x=>x.type==='asset_noncurrent'&&!x.ppeRole).reduce((s,co)=>s+num(bsTot[co.id]),0);
+    let bsAssetNoncurrent=reportingCOA().filter(x=>x.type==='asset_noncurrent'&&!x.ppeRole&&x.id!=='asset_noncurrent.ppe').reduce((s,co)=>s+num(bsTot[co.id]),0);
     // PPE NBV: sum cost minus abs(acc_dep) per class
     let bsPpeNBV=0;
     PPE_CLASSES.forEach(p=>{
@@ -1490,7 +1551,7 @@ function qcChecks(){
     let bsEquity=reportingCOA().filter(x=>x.type==='equity').reduce((s,co)=>s+num(bsTot[co.id]),0);
     let bsLiabCurrent=reportingCOA().filter(x=>x.type==='liability_current').reduce((s,co)=>s+num(bsTot[co.id]),0);
     // autoFlip negatives also appear in current liabilities
-    let bsAutoFlipLiab=reportingCOA().filter(x=>x.autoFlip).reduce((s,co)=>{
+    let bsAutoFlipLiab=reportingCOA().filter(x=>x.autoFlip&&x.type==='asset_current').reduce((s,co)=>{
       let v=num(bsTot[co.id]);return s+Math.max(-v,0);
     },0);
     let bsLiabNoncurrent=reportingCOA().filter(x=>x.type==='liability_noncurrent').reduce((s,co)=>s+num(bsTot[co.id]),0);
@@ -1693,11 +1754,11 @@ function reportNoteCell(id){
   return '<button class="note-cell-btn '+setClass+'" title="'+tip+'" onclick="window._noteCells&&showNoteViewer(window._noteCells['+idx+'])">'+label+'</button>';
 }
 function plRowIsEmpty(co,c){
-  let budget=num(client.budgets[co.id]?.[c.rm]);
-  let ytdBudget=c.months.slice(0,c.idx+1).reduce((s,m)=>s+num(client.budgets[co.id]?.[m]),0);
+  let budget=c.budCM(co);
+  let ytdBudget=c.budYTD(co);
   return num(c.cm[co.id])===0 && num(c.ytd[co.id])===0 && budget===0 && ytdBudget===0;
 }
-function plRow(co,c,indent){let budget=num(client.budgets[co.id]?.[c.rm]);let ytdBudget=c.months.slice(0,c.idx+1).reduce((s,m)=>s+num(client.budgets[co.id]?.[m]),0);let cm=num(c.cm[co.id]);let ytd=num(c.ytd[co.id]);let varPct=budget?((cm-budget)/Math.abs(budget)):0;let ytdVarPct=ytdBudget?((ytd-ytdBudget)/Math.abs(ytdBudget)):0;let isExp=['expense','other_expense','cogs'].includes(co.type);let pad=indent?'padding-left:36px':'';let isUnalloc=co.unallocated&&(cm!==0||ytd!==0);let nameStyle=isUnalloc?'font-weight:bold;color:var(--bad)':'';let warnIcon=isUnalloc?' ⚠':'';return[`<span class="indent" style="${pad};${nameStyle}">${esc(co.name)}${warnIcon}</span>`,reportNoteCell(co.id),money(cm),money(budget),`${pct(varPct)}${trafficDot(varPct,isExp)}`,money(ytd),money(ytdBudget),`${pct(ytdVarPct)}${trafficDot(ytdVarPct,isExp)}`];}
+function plRow(co,c,indent){let budget=c.budCM(co);let ytdBudget=c.budYTD(co);let cm=num(c.cm[co.id]);let ytd=num(c.ytd[co.id]);let varPct=budget?((cm-budget)/Math.abs(budget)):0;let ytdVarPct=ytdBudget?((ytd-ytdBudget)/Math.abs(ytdBudget)):0;let isExp=['expense','other_expense','cogs'].includes(co.type);let pad=indent?'padding-left:36px':'';let isUnalloc=co.unallocated&&(cm!==0||ytd!==0);let nameStyle=isUnalloc?'font-weight:bold;color:var(--bad)':'';let warnIcon=isUnalloc?' ⚠':'';return[`<span class="indent" style="${pad};${nameStyle}">${esc(co.name)}${warnIcon}</span>`,reportNoteCell(co.id),money(cm),money(budget),`${pct(varPct)}${trafficDot(varPct,isExp)}`,money(ytd),money(ytdBudget),`${pct(ytdVarPct)}${trafficDot(ytdVarPct,isExp)}`];}
 function plAccountRows(c,type){
   let rows=[];
   // For smartFlip accounts: show under other_income if cm>=0, under other_expense if cm<0
@@ -1716,8 +1777,8 @@ function plAccountRows(c,type){
     if(children.length){
       let gCm=num(c.cm[co.id])+children.reduce((s,ch)=>s+num(c.cm[ch.id]),0);
       let gYtd=num(c.ytd[co.id])+children.reduce((s,ch)=>s+num(c.ytd[ch.id]),0);
-      let gBud=num(client.budgets[co.id]?.[c.rm])+children.reduce((s,ch)=>s+num(client.budgets[ch.id]?.[c.rm]),0);
-      let gYtdBud=c.months.slice(0,c.idx+1).reduce((s,m)=>s+num(client.budgets[co.id]?.[m])+children.reduce((t,ch)=>t+num(client.budgets[ch.id]?.[m]),0),0);
+      let gBud=c.budCM(co)+children.reduce((s,ch)=>s+c.budCM(ch),0);
+      let gYtdBud=c.budYTD(co)+children.reduce((s,ch)=>s+c.budYTD(ch),0);
       // Skip entire group if all zeros
       if(gCm===0&&gYtd===0&&gBud===0&&gYtdBud===0)return;
       let gVarPct=gBud?((gCm-gBud)/Math.abs(gBud)):0;
@@ -1732,11 +1793,11 @@ function plAccountRows(c,type){
   });
   return rows;
 }
-function plSectionRows(c,type,label){let rows=[[`<b>${esc(label)}</b>`,'','','','','','','','section-line']];rows.push(...plAccountRows(c,type));let month=sumByType(c.cm,type), ytd=sumByType(c.ytd,type);let budget=reportingCOA().filter(x=>x.type===type).reduce((s,co)=>s+num(client.budgets[co.id]?.[c.rm]),0);let ytdBudget=c.months.slice(0,c.idx+1).reduce((s,m)=>s+reportingCOA().filter(x=>x.type===type).reduce((t,co)=>t+num(client.budgets[co.id]?.[m]),0),0);let varPct=budget?((month-budget)/Math.abs(budget)):0;let ytdVarPct=ytdBudget?((ytd-ytdBudget)/Math.abs(ytdBudget)):0;rows.push([`<b>Total ${esc(label)}</b>`,'',`<b>${moneyZ(month)}</b>`,`<b>${moneyZ(budget)}</b>`,`<b>${pct(varPct)}</b>${trafficDot(varPct,['expense','other_expense','cogs'].includes(type))}`,`<b>${moneyZ(ytd)}</b>`,`<b>${moneyZ(ytdBudget)}</b>`,`<b>${pct(ytdVarPct)}</b>${trafficDot(ytdVarPct,['expense','other_expense','cogs'].includes(type))}`,'total-line']);return rows}
-function bsStatementRows(c,type,label,pyBs){let hasPY=pyBs&&Object.keys(pyBs).length>0;let cols=hasPY?4:3;let rows=[[`<b>${esc(label)}</b>`,...Array(cols-1).fill(''),'section-line']];let total=0,pyTotal=0;reportingCOA().filter(x=>x.type===type).forEach(co=>{let val=num(c.bs[co.id]);if(co.autoFlip&&type==='asset_current'&&val<0)return;let pyVal=hasPY?num(pyBs[co.id]):null;// Zero suppression: skip if no value in either period
+function plSectionRows(c,type,label){let rows=[[`<b>${esc(label)}</b>`,'','','','','','','','section-line']];rows.push(...plAccountRows(c,type));let month=sumByType(c.cm,type), ytd=sumByType(c.ytd,type);let budget=calcBudgetC(c,type,false);let ytdBudget=calcBudgetC(c,type,true);let varPct=budget?((month-budget)/Math.abs(budget)):0;let ytdVarPct=ytdBudget?((ytd-ytdBudget)/Math.abs(ytdBudget)):0;rows.push([`<b>Total ${esc(label)}</b>`,'',`<b>${moneyZ(month)}</b>`,`<b>${moneyZ(budget)}</b>`,`<b>${pct(varPct)}</b>${trafficDot(varPct,['expense','other_expense','cogs'].includes(type))}`,`<b>${moneyZ(ytd)}</b>`,`<b>${moneyZ(ytdBudget)}</b>`,`<b>${pct(ytdVarPct)}</b>${trafficDot(ytdVarPct,['expense','other_expense','cogs'].includes(type))}`,'total-line']);return rows}
+function bsStatementRows(c,type,label,pyBs){let hasPY=pyBs&&Object.keys(pyBs).length>0;let cols=hasPY?4:3;let rows=[[`<b>${esc(label)}</b>`,...Array(cols-1).fill(''),'section-line']];let total=0,pyTotal=0;reportingCOA().filter(x=>x.type===type).forEach(co=>{let val=num(c.bs[co.id]);let pyVal=hasPY?num(pyBs[co.id]):null;if(co.autoFlip&&type==='asset_current'){val=Math.max(val,0);if(hasPY)pyVal=Math.max(pyVal,0);}// Zero suppression: skip if no value in either period
 if(val===0&&(pyVal===null||pyVal===0))return;total+=val;if(hasPY)pyTotal+=pyVal;let chg=(hasPY&&pyVal)?((val-pyVal)/Math.abs(pyVal)):0;let isAsset=type.startsWith('asset');// acc_dep accounts are credit balances (negative) — show as brackets; cost/other accounts show as positive
 let isAccDep=co.ppeRole==='acc_dep';let dispVal=isAccDep?moneyZ(val):money(Math.abs(val));let dispPyVal=isAccDep?moneyZ(pyVal||0):money(Math.abs(pyVal||0));let row=[`<span class="indent">${esc(co.name)}</span>`,reportNoteCell(co.id),dispVal];if(hasPY)row.push(dispPyVal,`${pct(chg)}${trafficDot(chg,!isAsset)}`);rows.push(row);});let totalRow=[`<b>Total ${esc(label)}</b>`,'',`<b>${moneyZ(total)}</b>`];if(hasPY){let tChg=pyTotal?((total-pyTotal)/Math.abs(pyTotal)):0;totalRow.push(`<b>${moneyZ(pyTotal)}</b>`,`<b>${pct(tChg)}</b>${trafficDot(tChg,false)}`);}totalRow.push('total-line');rows.push(totalRow);return {rows,total,pyTotal}}
-function bsCurrentLiabilityStatement(c,pyBs){let hasPY=pyBs&&Object.keys(pyBs).length>0;let cols=hasPY?4:3;let rows=[[`<b>Current Liabilities</b>`,...Array(cols-1).fill(''),'section-line']];let total=0,pyTotal=0;reportingCOA().filter(x=>x.autoFlip).forEach(co=>{let val=num(c.bs[co.id]);if(val<0){total+=Math.abs(val);let pyVal=hasPY?num(pyBs[co.id]):null;if(hasPY&&pyVal<0)pyTotal+=Math.abs(pyVal);let chg=(hasPY&&pyVal)?((val-pyVal)/Math.abs(pyVal)):0;let row=[`<span class="indent">${esc(co.name)}</span>`,reportNoteCell(co.id),money(Math.abs(val))];if(hasPY)row.push(money(Math.abs(pyVal||0)),`${pct(chg)}${trafficDot(chg,true)}`);rows.push(row);}});reportingCOA().filter(x=>x.type==='liability_current').forEach(co=>{let val=num(c.bs[co.id]);let pyVal=hasPY?num(pyBs[co.id]):null;// Zero suppression
+function bsCurrentLiabilityStatement(c,pyBs){let hasPY=pyBs&&Object.keys(pyBs).length>0;let cols=hasPY?4:3;let rows=[[`<b>Current Liabilities</b>`,...Array(cols-1).fill(''),'section-line']];let total=0,pyTotal=0;reportingCOA().filter(x=>x.autoFlip&&x.type==='asset_current').forEach(co=>{let nCY=Math.max(-num(c.bs[co.id]),0);let nPY=hasPY?Math.max(-num(pyBs[co.id]),0):0;if(nCY===0&&nPY===0)return;total+=nCY;pyTotal+=nPY;let chg=(hasPY&&nPY)?((nCY-nPY)/nPY):0;let row=[`<span class="indent">${esc(co.name)}</span>`,reportNoteCell(co.id),money(nCY)];if(hasPY)row.push(money(nPY),`${pct(chg)}${trafficDot(chg,true)}`);rows.push(row);});reportingCOA().filter(x=>x.type==='liability_current').forEach(co=>{let val=num(c.bs[co.id]);let pyVal=hasPY?num(pyBs[co.id]):null;// Zero suppression
 if(val===0&&(pyVal===null||pyVal===0))return;total+=val;if(hasPY)pyTotal+=num(pyVal);let chg=(hasPY&&pyVal)?((val-pyVal)/Math.abs(pyVal)):0;let row=[`<span class="indent">${esc(co.name)}</span>`,reportNoteCell(co.id),money(val)];if(hasPY)row.push(money(pyVal||0),`${pct(chg)}${trafficDot(chg,true)}`);rows.push(row);});let tChg=pyTotal?((total-pyTotal)/Math.abs(pyTotal)):0;let totalRow=[`<b>Total Current Liabilities</b>`,'',`<b>${moneyZ(total)}</b>`];if(hasPY)totalRow.push(`<b>${moneyZ(pyTotal)}</b>`,`<b>${pct(tChg)}</b>${trafficDot(tChg,true)}`);totalRow.push('total-line');rows.push(totalRow);return {rows,total,pyTotal}}
 function plCalcRow(label,noteId,month,ytd,budget,ytdBudget,cls){cls=cls||'grand-line';let varPct=budget?((month-budget)/Math.abs(budget)):0;let ytdVarPct=ytdBudget?((ytd-ytdBudget)/Math.abs(ytdBudget)):0;return [`<b>${esc(label)}</b>`,noteId?reportNoteCell(noteId):'',`<b>${moneyZ(month)}</b>`,`<b>${moneyZ(budget)}</b>`,`<b>${pct(varPct)}</b>${trafficDot(varPct,false)}`,`<b>${moneyZ(ytd)}</b>`,`<b>${moneyZ(ytdBudget)}</b>`,`<b>${pct(ytdVarPct)}</b>${trafficDot(ytdVarPct,false)}`,cls];}
 function plPctRow(label,monthAmt,monthBase,budgetAmt,budgetBase,ytdAmt,ytdBase,ytdBudgetAmt,ytdBudgetBase){
@@ -2178,25 +2239,10 @@ function renderPLView(){
     pl.push(plPctRow('NP %',npMonth,incMonth,npBudget,incBudget,npYtd,incYtd,npYtdBudget,incYtdBudget));
   } else {
     // Stream-specific P&L with apportionment
-    let sd=buildStreamPL(_activePLStream,c);
-    let streamC={...c, cm:sd.cm, ytd:sd.ytd};
+    let sr=streamPLRows(_activePLStream,c);let sd=sr.sd;pl.push(...sr.rows);
     let apportionPct=(sd.ratio*100).toFixed(1)+'%';
     let basisNote=sd.usedGPBasis?'GP contribution':'Revenue contribution (GP fallback)';
-    let apportionBanner='<div class="ok" style="margin-bottom:12px;font-size:13px">Shared expenses apportioned at <b>'+apportionPct+'</b> based on '+basisNote+'</div>';
-    pl.push(...plSectionRows(streamC,'income','Income'));
-    pl.push(...plSectionRows(streamC,'cogs','Cost of Sales'));
-    let gpMonth=sumByType(sd.cm,'income')-sumByType(sd.cm,'cogs');
-    let gpYtd=sumByType(sd.ytd,'income')-sumByType(sd.ytd,'cogs');
-    let incMonth=sumByType(sd.cm,'income'), incYtd=sumByType(sd.ytd,'income');
-    pl.push(plCalcRow('Gross Profit',null,gpMonth,gpYtd,0,0));
-    pl.push(plPctRow('GP %',gpMonth,incMonth,0,0,gpYtd,incYtd,0,0));
-    pl.push(...plSectionRows(streamC,'other_income','Other Income'));
-    pl.push(...plSectionRows(streamC,'expense','Expenses'));
-    pl.push(...plSectionRows(streamC,'other_expense','Other Expenses'));
-    let npMonth=gpMonth+sumByType(sd.cm,'other_income')-sumByType(sd.cm,'expense')-sumByType(sd.cm,'other_expense');
-    let npYtd=gpYtd+sumByType(sd.ytd,'other_income')-sumByType(sd.ytd,'expense')-sumByType(sd.ytd,'other_expense');
-    pl.push(plCalcRow('Net Profit',null,npMonth,npYtd,0,0));
-    pl.push(plPctRow('NP %',npMonth,incMonth,0,0,npYtd,incYtd,0,0));
+    let apportionBanner='<div class="ok" style="margin-bottom:12px;font-size:13px">Actual shared expenses apportioned at <b>'+apportionPct+'</b> based on '+basisNote+' (budget: <b>'+(sr.bf.ratioM*100).toFixed(1)+'%</b> current month, <b>'+(sr.bf.ratioY*100).toFixed(1)+'%</b> YTD)</div>';
     let streamName=streams.find(ss=>ss.id===_activePLStream);
     let streamLabel=streamName?streamName.name:'Stream';
     document.getElementById('pl').innerHTML=
@@ -2461,25 +2507,9 @@ ${(()=>{
   let slist=getStreams();
   if(slist.length>0){
     slist.forEach(st=>{
-      let sd=buildStreamPL(st.id,c);
-      let sC={...c,cm:sd.cm,ytd:sd.ytd};
-      let spl=[];
-      spl.push(...plSectionRows(sC,'income','Income'));
-      spl.push(...plSectionRows(sC,'cogs','Cost of Sales'));
-      let sgpM=sumByType(sd.cm,'income')-sumByType(sd.cm,'cogs');
-      let sgpY=sumByType(sd.ytd,'income')-sumByType(sd.ytd,'cogs');
-      let sincM=sumByType(sd.cm,'income'),sincY=sumByType(sd.ytd,'income');
-      spl.push(plCalcRow('Gross Profit',null,sgpM,sgpY,0,0));
-      spl.push(plPctRow('GP %',sgpM,sincM,0,0,sgpY,sincY,0,0));
-      spl.push(...plSectionRows(sC,'other_income','Other Income'));
-      spl.push(...plSectionRows(sC,'expense','Expenses'));
-      spl.push(...plSectionRows(sC,'other_expense','Other Expenses'));
-      let snpM=sgpM+sumByType(sd.cm,'other_income')-sumByType(sd.cm,'expense')-sumByType(sd.cm,'other_expense');
-      let snpY=sgpY+sumByType(sd.ytd,'other_income')-sumByType(sd.ytd,'expense')-sumByType(sd.ytd,'other_expense');
-      spl.push(plCalcRow('Net Profit',null,snpM,snpY,0,0));
-      spl.push(plPctRow('NP %',snpM,sincM,0,0,snpY,sincY,0,0));
+      let sr=streamPLRows(st.id,c);let sd=sr.sd;let spl=sr.rows;
       let apportionNote=sd.usedGPBasis?('Shared expenses apportioned at '+(sd.ratio*100).toFixed(1)+'% (GP contribution)'):('Shared expenses apportioned at '+(sd.ratio*100).toFixed(1)+'% (Revenue, GP fallback)');
-      streamPages+='<div class="report-page"><div class="report-title">Profit and Loss — '+esc(st.name)+'</div><p class="muted small" style="margin-bottom:8px">'+esc(apportionNote)+'</p>'+statementTable(['Account','Note','Current Month','','','YTD','',''],spl)+'</div>';
+      streamPages+='<div class="report-page"><div class="report-title">Profit and Loss — '+esc(st.name)+'</div><p class="muted small" style="margin-bottom:8px">'+esc(apportionNote)+'</p>'+statementTable(['Account','Note','Current Month','Budget','Variance %','YTD','YTD Budget','YTD Variance %'],spl)+'</div>';
     });
   }
   return streamPages;
